@@ -7,39 +7,44 @@ import java.util.ArrayList;
 
 public class ArrayLexerGUI extends JFrame {
 
-    // --- GUI COMPONENTS ---
-    private JTextArea inputArea;
-    private JTable resultTable;
-    private DefaultTableModel tableModel;
+    // GUI components that we'll use throughout the program
+    private JTextArea inputArea;      // Where user types code
+    private JTable resultTable;       // Shows the tokens in a table
+    private DefaultTableModel tableModel;  // Manages the table data
 
     public ArrayLexerGUI() {
-        // 1. Setup the Window
+        // === WINDOW SETUP ===
+        // Configure the main window properties
         setTitle("Array Lexical Analyzer");
         setSize(600, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null); // Center window
+        setLocationRelativeTo(null); // Centers the window on screen
         setLayout(new BorderLayout(10, 10));
 
-        // 2. Top Panel: Input Area
+        // === INPUT SECTION (TOP) ===
+        // Create a panel for the text input area
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createTitledBorder("Source Code Input"));
         
+        // Text area where user enters code to analyze
         inputArea = new JTextArea(3, 40);
-        inputArea.setText("int[] numbers = {10, 20, 50};"); // Default text
+        inputArea.setText("int[] numbers = {10, 20, 50};"); // Sample code
         inputArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
         
+        // Button that triggers the lexical analysis
         JButton analyzeBtn = new JButton("Analyze / Tokenize");
         analyzeBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                runAnalysis();
+                runAnalysis();  // Call the analysis method when clicked
             }
         });
 
         topPanel.add(new JScrollPane(inputArea), BorderLayout.CENTER);
         topPanel.add(analyzeBtn, BorderLayout.SOUTH);
 
-        // 3. Center Panel: Output Table
+        // === OUTPUT SECTION (CENTER) ===
+        // Create a table to display the tokens
         String[] columnNames = {"Token Type", "Value / Symbol"};
         tableModel = new DefaultTableModel(columnNames, 0);
         resultTable = new JTable(tableModel);
@@ -50,38 +55,41 @@ public class ArrayLexerGUI extends JFrame {
         JScrollPane tableScroll = new JScrollPane(resultTable);
         tableScroll.setBorder(BorderFactory.createTitledBorder("Token Output"));
 
-        // 4. Add to Frame
+        // Add both sections to the main window
         add(topPanel, BorderLayout.NORTH);
         add(tableScroll, BorderLayout.CENTER);
     }
 
-    // --- THE LEXER LOGIC (Helper Function) ---
+    // === LEXICAL ANALYZER (THE MAIN LOGIC) ===
+    // This method breaks down the input code into tokens
     private void runAnalysis() {
-        // Clear previous results
-        tableModel.setRowCount(0);
+        tableModel.setRowCount(0);  // Clear previous results
         
-        String input = inputArea.getText();
+        String input = inputArea.getText();  // Get the code from text area
         int length = input.length();
-        int i = 0;
+        int i = 0;  // Position tracker in the string
 
-        // Loop through the input string
+        // Go through each character in the input
         while (i < length) {
             char c = input.charAt(i);
 
-            // Skip Whitespace
+            // RULE 1: Skip spaces, tabs, newlines
             if (Character.isWhitespace(c)) {
-                i++; continue;
+                i++; 
+                continue;
             }
 
-            // Handle Array Syntax & Operators
+            // RULE 2: Check for special symbols like [], {}, =, ;
             if (isSymbol(c)) {
                 addTokenToTable(getSymbolType(c), Character.toString(c));
-                i++; continue;
+                i++; 
+                continue;
             }
 
-            // Handle Numbers
+            // RULE 3: Build complete numbers (can be multiple digits)
             if (Character.isDigit(c)) {
                 StringBuilder sb = new StringBuilder();
+                // Keep reading digits until we hit a non-digit
                 while (i < length && Character.isDigit(input.charAt(i))) {
                     sb.append(input.charAt(i));
                     i++;
@@ -90,39 +98,41 @@ public class ArrayLexerGUI extends JFrame {
                 continue;
             }
 
-            // Handle Words (Keywords/IDs)
+            // RULE 4: Build complete words (keywords or identifiers)
             if (Character.isLetter(c)) {
                 StringBuilder sb = new StringBuilder();
+                // Keep reading letters/numbers until we hit something else
                 while (i < length && (Character.isLetterOrDigit(input.charAt(i)))) {
                     sb.append(input.charAt(i));
                     i++;
                 }
                 String word = sb.toString();
+                // Check if it's a reserved keyword
                 if (word.matches("int|String|float|double|new")) {
                     addTokenToTable("KEYWORD", word);
                 } else {
-                    addTokenToTable("IDENTIFIER", word);
+                    addTokenToTable("IDENTIFIER", word);  // It's a variable name
                 }
                 continue;
             }
 
-            // Unknown
+            // RULE 5: If we can't identify it, mark as unknown
             addTokenToTable("UNKNOWN", Character.toString(c));
             i++;
         }
     }
 
-    // Helper to add row to GUI table
+    // Helper: Add a new row to the results table
     private void addTokenToTable(String type, String value) {
         tableModel.addRow(new Object[]{type, value});
     }
 
-    // Helper to identify symbols
+    // Helper: Check if character is a recognized symbol
     private boolean isSymbol(char c) {
         return "[]{},=;".indexOf(c) != -1;
     }
 
-    // Helper to map symbol to name
+    // Helper: Get the proper name for each symbol
     private String getSymbolType(char c) {
         switch (c) {
             case '[': return "L_BRACKET";
@@ -136,9 +146,9 @@ public class ArrayLexerGUI extends JFrame {
         }
     }
 
-    // --- MAIN LAUNCHER ---
+    // === PROGRAM ENTRY POINT ===
     public static void main(String[] args) {
-        // Run on Event Dispatch Thread for thread safety
+        // Launch the GUI on the proper thread for Swing
         SwingUtilities.invokeLater(() -> {
             new ArrayLexerGUI().setVisible(true);
         });
