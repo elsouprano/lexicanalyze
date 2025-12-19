@@ -1,7 +1,7 @@
 ===========================================================
       PROJECT REPORT: ARRAYLEX LEXICAL ANALYZER
 ===========================================================
-Developer: [Your Name]
+Developer: [Imong Pangalan]
 Language: Java (Swing GUI)
 Date: December 2025
 
@@ -84,4 +84,5 @@ INSTRUCTIONS TO RUN
 3. Run: java ArrayLexerGUI
 4. Paste the 'Correct Input Sample' above into the text 
    box and click "Analyze".
+
 ===========================================================
