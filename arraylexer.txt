@@ -1,0 +1,87 @@
+===========================================================
+      PROJECT REPORT: ARRAYLEX LEXICAL ANALYZER
+===========================================================
+Developer: [Your Name]
+Language: Java (Swing GUI)
+Date: December 2025
+
+-----------------------------------------------------------
+1. OVERVIEW OF PROPOSED PL DESIGN
+-----------------------------------------------------------
+Name: ArrayLex
+
+ArrayLex is a domain-specific language designed specifically 
+for structured array declarations. It mimics the syntax of 
+C-style languages but enforces strict tokenization rules 
+to ensure data integrity.
+
+Key Characteristics:
+- Focus: Fixed-type array initialization.
+- Paradigm: Imperative and Statically Typed.
+- Design: Every statement must be explicitly terminated with 
+  a semicolon (;), and data sets must be encapsulated within 
+  curly braces {} to separate data from variable naming.
+
+
+
+-----------------------------------------------------------
+2. STRUCTURE OF THE CODE
+-----------------------------------------------------------
+The analyzer is built using a character-pointer scanning 
+approach (Deterministic Finite Automaton logic) within Java.
+
+- UI Layer: Uses 'javax.swing' to provide a window where users 
+  can type code. It uses a JTable to show real-time results.
+- Scanner Engine: The 'runAnalysis()' method uses a 'while' 
+  loop and an index pointer to read the text character by 
+  character.
+- Logic Flow:
+    - Whitespace: Automatically skipped to find the next lexeme.
+    - Multi-digit Numbers: Uses a StringBuilder to group 
+      consecutive digits (e.g., '50') into one NUMBER token.
+    - Keywords vs Identifiers: Uses a Regex check to see if 
+      a word is a reserved type (int, String) or a variable name.
+
+-----------------------------------------------------------
+3. SAMPLE INPUT: LEXEMES AND TOKENS
+-----------------------------------------------------------
+
+A. CORRECT LEXEMES (Samples)
+Lexeme: "int"      -> Token: KEYWORD    (Type definition)
+Lexeme: "numbers"  -> Token: IDENTIFIER (Variable name)
+Lexeme: "{"        -> Token: L_BRACE    (Block start)
+Lexeme: "50"       -> Token: NUMBER     (Literal value)
+
+B. INCORRECT/INVALID TOKENS (Samples)
+Lexeme: "@"        -> Token: UNKNOWN    (Unsupported symbol)
+Lexeme: "#"        -> Token: UNKNOWN    (No preprocessor support)
+Lexeme: "$"        -> Token: UNKNOWN    (Illegal character)
+
+-----------------------------------------------------------
+4. UNIQUE PL PRINCIPLE: "STRICT BLOCK ENCAPSULATION"
+-----------------------------------------------------------
+The defining principle of ArrayLex is Strict Block 
+Encapsulation. This ensures the Lexer can always identify 
+the start and end of a data structure without ambiguity.
+
+Correct Input Sample:
+   int[] scores = {90, 85, 70};
+
+Why it's unique: 
+In ArrayLex, the braces {} are not just style choices; 
+they are required delimiters. By enforcing these tokens, 
+the Lexer provides a clear roadmap for the Parser (the next 
+stage) to ensure that array data is never "leaking" or 
+unstructured.
+
+
+
+-----------------------------------------------------------
+INSTRUCTIONS TO RUN
+-----------------------------------------------------------
+1. Save the provided Java code as 'ArrayLexerGUI.java'.
+2. Compile: javac ArrayLexerGUI.java
+3. Run: java ArrayLexerGUI
+4. Paste the 'Correct Input Sample' above into the text 
+   box and click "Analyze".
+===========================================================
