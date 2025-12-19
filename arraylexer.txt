@@ -86,3 +86,80 @@ INSTRUCTIONS TO RUN
    box and click "Analyze".
 
 ===========================================================
+
+
+EASIER EXPLANATIONS
+
+
+===========================================================
+      PROJECT REPORT: ARRAYLEX ANALYZER
+===========================================================
+Developer: [Imong Pangalan]
+Language: Java
+
+-----------------------------------------------------------
+1. OVERVIEW OF THE LANGUAGE DESIGN
+-----------------------------------------------------------
+The developer created a simple language called "ArrayLex." 
+This language is designed specifically for making lists 
+of data, known as arrays. 
+
+The goal of ArrayLex is to make sure that every list is 
+labeled correctly and kept inside clear boundaries so the 
+computer doesn't get confused.
+
+
+
+-----------------------------------------------------------
+2. HOW THE PROGRAM WORKS
+-----------------------------------------------------------
+The program works like a scanner. It looks at the text 
+the user types and follows these steps:
+
+- It reads the text one character at a time.
+- It groups letters together to find "keywords" (like 'int').
+- It groups digits together to find "numbers" (like '500').
+- It identifies symbols like equals signs (=) and braces {}.
+- If it sees a symbol it doesn't recognize (like @), it 
+  marks it as "Unknown."
+
+-----------------------------------------------------------
+3. EXAMPLES OF INPUTS
+-----------------------------------------------------------
+
+A. CORRECT EXAMPLES:
+- "int"      (The program identifies this as a KEYWORD)
+- "myArray"  (The program identifies this as a NAME)
+- "{"        (The program identifies this as a START SYMBOL)
+- "25"       (The program identifies this as a NUMBER)
+
+B. INCORRECT EXAMPLES:
+- "@"        (The program labels this UNKNOWN)
+- "#"        (The program labels this UNKNOWN)
+- "$"        (The program labels this UNKNOWN)
+
+-----------------------------------------------------------
+4. THE UNIQUE PRINCIPLE: "STRICT BLOCKS"
+-----------------------------------------------------------
+The main rule of this language is called "Strict Blocks." 
+This means that all data must be placed inside curly 
+braces {}. 
+
+Example: int[] numbers = {1, 2, 3};
+
+This rule is unique because it forces the user to be very 
+organized. By using these symbols, the program can easily 
+see exactly where a list starts and where it ends. This 
+stops errors before they happen.
+
+
+
+-----------------------------------------------------------
+HOW TO USE IT
+-----------------------------------------------------------
+1. The user opens the Java application.
+2. The user types array code into the box.
+3. The user clicks "Analyze."
+4. The program shows a list of every piece it found and 
+   what that piece represents.
+===========================================================
