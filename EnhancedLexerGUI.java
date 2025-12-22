@@ -14,18 +14,22 @@ public class EnhancedLexerGUI extends JFrame {
     private DefaultTableModel tableModel;
 
     public EnhancedLexerGUI() {
-        // === WINDOW SETUP ===
-        setTitle("Javai++ Tokenizer (Ang katapusan)");
+        // === WINDOW SETUP (Setup ng GUI) ===
+        setTitle("Javai++ Tokenizer (Taglish Comments)");
         setSize(750, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // === INPUT SECTION (TOP) ===
+        // === INPUT SECTION (Dito ita-type ang code) ===
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createTitledBorder("Source Code Input"));
 
         inputArea = new JTextArea(10, 40);
+        // Sample text para ma-test agad ang String at Comments
+        inputArea.setText("String message = \"Hello World\";\n" +
+                          "// Ito ay comment, di dapat basahin ng lexer\n" +
+                          "int x = 25;");
         inputArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
         JButton analyzeBtn = new JButton("Analyze / Tokenize");
@@ -33,19 +37,19 @@ public class EnhancedLexerGUI extends JFrame {
         analyzeBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                runAnalysis();
+                runAnalysis(); // Tawagin ang main logic pag-click
             }
         });
 
         topPanel.add(new JScrollPane(inputArea), BorderLayout.CENTER);
         topPanel.add(analyzeBtn, BorderLayout.SOUTH);
 
-        // === OUTPUT SECTION (CENTER) ===
+        // === OUTPUT SECTION (Dito lalabas ang tokens) ===
         String[] columnNames = {"Token Type", "Value / Symbol"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return false;
+                return false; // Bawal i-edit ang table manually
             }
         };
         resultTable = new JTable(tableModel);
@@ -60,7 +64,7 @@ public class EnhancedLexerGUI extends JFrame {
         add(tableScroll, BorderLayout.CENTER);
     }
 
-    // Token class to store type and value
+    // Token class para sa storage ng Type at Value
     private static class Token {
         String type;
         String value;
@@ -73,25 +77,26 @@ public class EnhancedLexerGUI extends JFrame {
         }
     }
 
-    // === 1. INPUT VALIDATION ===
+    // === 1. INPUT VALIDATION (Che-check kung tama ang brackets at structure) ===
     private String validateInput(String input) {
         if (input == null || input.trim().isEmpty()) {
             return "Error: Input cannot be empty";
         }
 
-        // Check for balanced parentheses, brackets, and braces
+        // Check kung balanced ang parentheses (), brackets [], at braces {}
         int parenCount = 0, bracketCount = 0, braceCount = 0;
         boolean inString = false;
         
-        // Iterate chars to check balance, ignoring things inside strings
+        // Isa-isahin ang characters, pero wag pansinin ang nasa loob ng "quotes"
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
             
             if (c == '"' && (i == 0 || input.charAt(i-1) != '\\')) {
-                inString = !inString;
+                inString = !inString; // Toggle kung nasa loob ba tayo ng string
                 continue;
             }
             
+            // Kung hindi string, bilangin ang brackets
             if (!inString) {
                 if (c == '(') parenCount++;
                 if (c == ')') parenCount--;
@@ -110,7 +115,7 @@ public class EnhancedLexerGUI extends JFrame {
         if (bracketCount != 0) return "Error: Unbalanced square brackets [ ]";
         if (braceCount != 0) return "Error: Unbalanced curly braces { }";
 
-        // Must end with semicolon or brace (for blocks)
+        // Dapat nagtatapos sa semicolon o brace
         String trimmed = input.trim();
         if (!trimmed.endsWith(";") && !trimmed.endsWith("}")) {
              return "Error: Code snippet must generally end with a semicolon ; or brace }";
@@ -119,35 +124,34 @@ public class EnhancedLexerGUI extends JFrame {
         return null;
     }
 
-    // === 2. SEMANTIC VALIDATION ===
+    // === 2. SEMANTIC VALIDATION (Logic checking) ===
     private String validateTokenSequence(ArrayList<Token> tokens) {
-        // tokens list is already clean (no whitespace), so we pass it directly
         
-        // Validate variable declaration syntax
+        // Validate variable declaration (e.g. int x)
         String declError = validateDeclarations(tokens);
         if (declError != null) return declError;
 
-        // Validate array syntax
+        // Validate array syntax (e.g. {1, 2, 3})
         String arrayError = validateArraySyntax(tokens);
         if (arrayError != null) return arrayError;
 
-        // Validate identifier naming rules
+        // Validate identifier naming rules (bawal keywords)
         String identError = validateIdentifiers(tokens);
         if (identError != null) return identError;
 
-        // Validate operator usage
+        // Validate operators (bawal magkadikit ang maling operators)
         String opError = validateOperators(tokens);
         if (opError != null) return opError;
 
         return null;
     }
 
-    // Validate variable declarations
+    // Validation para sa Variable Declarations
     private String validateDeclarations(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
             
-            // Check for type declarations (int, String, etc.)
+            // Kung keyword siya na pang-declare (int, String, etc.)
             if (t.type.equals("KEYWORD") && isTypeKeyword(t.value)) {
                 
                 if (i + 1 >= tokens.size()) {
@@ -156,7 +160,7 @@ public class EnhancedLexerGUI extends JFrame {
                 
                 Token next = tokens.get(i + 1);
                 
-                // Handle array declaration (e.g., int[])
+                // Kung array declaration (e.g., int[])
                 if (next.type.equals("L_BRACKET")) {
                     if (i + 2 >= tokens.size() || !tokens.get(i + 2).type.equals("R_BRACKET")) {
                         return "Error: Array brackets must be closed '[]' after type '" + t.value + "'";
@@ -165,11 +169,11 @@ public class EnhancedLexerGUI extends JFrame {
                         return "Error: Expected variable name after '" + t.value + "[]'";
                     }
                 } 
-                // Regular variable declaration (e.g., int x)
+                // Regular declaration (e.g., int x)
                 else if (next.type.equals("IDENTIFIER")) {
                     if (i + 2 < tokens.size()) {
                         Token afterIdent = tokens.get(i + 2);
-                        // Prevent "int x 5;"
+                        // Bawal ang "int x 5;" -> dapat "int x = 5;"
                         if (afterIdent.type.equals("NUMBER") || afterIdent.type.equals("STRING_LITERAL")) {
                             return "Error: Missing operator. Value '" + afterIdent.value + 
                                    "' cannot directly follow variable '" + next.value + "'";
@@ -183,21 +187,16 @@ public class EnhancedLexerGUI extends JFrame {
         return null;
     }
 
-    // Validate array initialization
+    // Validation para sa Array values
     private String validateArraySyntax(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
 
-            // Array initialization with braces
+            // Pag nakakita ng {, che-check ang laman
             if (t.type.equals("L_BRACE")) {
                 int j = i + 1;
                 boolean expectingValue = true;
                 boolean expectingComma = false;
-                boolean isEmpty = false;
-
-                if (j < tokens.size() && tokens.get(j).type.equals("R_BRACE")) {
-                    isEmpty = true;
-                }
 
                 while (j < tokens.size() && !tokens.get(j).type.equals("R_BRACE")) {
                     Token current = tokens.get(j);
@@ -226,7 +225,7 @@ public class EnhancedLexerGUI extends JFrame {
         return null;
     }
 
-    // Validate identifier naming
+    // Validation para sa pangalan ng variables
     private String validateIdentifiers(ArrayList<Token> tokens) {
         Set<String> reservedWords = getReservedWords();
         
@@ -236,7 +235,7 @@ public class EnhancedLexerGUI extends JFrame {
                 if (reservedWords.contains(name.toLowerCase())) {
                     return "Error: '" + name + "' is a reserved keyword";
                 }
-                // Double check pattern, though lexer handles most
+                // Regex check
                 if (!name.matches("[a-zA-Z_$][a-zA-Z0-9_$]*")) {
                     return "Error: Invalid identifier format '" + name + "'";
                 }
@@ -245,17 +244,17 @@ public class EnhancedLexerGUI extends JFrame {
         return null;
     }
 
-    // Validate operators
+    // Validation para sa Operators
     private String validateOperators(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
             
-            // Check for operator at start (except unary)
+            // Bawal magsimula sa operator (maliban sa unary like - or !)
             if (i == 0 && isOperator(t.type) && !isUnaryOperator(t.type)) {
                 return "Error: Statement cannot start with operator '" + t.value + "'";
             }
             
-            // Check for consecutive operators
+            // Bawal ang magkadikit na operator na mali (e.g. ==+)
             if (i < tokens.size() - 1 && isOperator(t.type)) {
                 Token next = tokens.get(i + 1);
                 if (isOperator(next.type) && !isValidOperatorSequence(t.value, next.value)) {
@@ -286,6 +285,7 @@ public class EnhancedLexerGUI extends JFrame {
     }
 
     private boolean isValidOperatorSequence(String op1, String op2) {
+        // Pwede lang magkadikit kung ang pangalawa ay negative sign o not (!)
         return (op2.equals("!") || op2.equals("-") || op2.equals("+"));
     }
 
@@ -303,13 +303,13 @@ public class EnhancedLexerGUI extends JFrame {
         return reserved;
     }
 
-    // === 3. CORE LEXER ENGINE ===
+    // === 3. CORE LEXER ENGINE (Dito ang utak ng Lexical Analyzer (UTAK???)) ===
     private void runAnalysis() {
-        tableModel.setRowCount(0);
+        tableModel.setRowCount(0); // alisin or linisin boi ang table bago mag-start
 
         String input = inputArea.getText();
         
-        // Basic syntax check
+        // Step 0: Syntax check muna
         String validationError = validateInput(input);
         if (validationError != null) {
             addTokenToTable("VALIDATION ERROR", validationError);
@@ -323,22 +323,25 @@ public class EnhancedLexerGUI extends JFrame {
         while (i < length) {
             char c = input.charAt(i);
 
-            // 1. SKIP WHITESPACE (Clean output)
+            // 1. SKIP WHITESPACE (akong solusyon ngani para malinis ang output)
+            // Kapag space o tab, lampasan lang natin (i++)
             if (Character.isWhitespace(c)) {
                 i++;
                 continue;
             }
 
-            // 2. HANDLE COMMENTS (Ignore)
+            // 2. HANDLE COMMENTS (WAG MONG PANSININ ang mga // comments)
             if (c == '/' && i + 1 < length && input.charAt(i + 1) == '/') {
-                i += 2;
+                i += 2; // Skip natin yung "//"
+                // Tapos skip lahat hanggang dulo ng line (\n)
                 while (i < length && input.charAt(i) != '\n' && input.charAt(i) != '\r') {
                     i++;
                 }
                 continue;
             }
 
-            // 3. HANDLE STRING LITERALS (Full string support)
+            // 3. HANDLE STRING LITERALS (Solusyon sa "Hole" ng Strings)
+            // Kapag nakakita ng quote ", kukunin lahat hanggang sa next quote
             if (c == '"') {
                 StringBuilder sb = new StringBuilder();
                 sb.append(c);
@@ -349,6 +352,7 @@ public class EnhancedLexerGUI extends JFrame {
                     char nextC = input.charAt(i);
                     sb.append(nextC);
                     i++;
+                    // Pag nakita na ang closing quote, stop na
                     if (nextC == '"' && input.charAt(i-2) != '\\') {
                         break; 
                     }
@@ -357,7 +361,7 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // 4. HANDLE SINGLE CHAR SYMBOLS
+            // 4. HANDLE SINGLE CHAR SYMBOLS (brackets, parens, etc.)
             if (isSingleCharSymbol(c)) {
                 String type = getSymbolType(c);
                 tokens.add(new Token(type, Character.toString(c), i));
@@ -365,42 +369,45 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // 5. HANDLE NUMBERS (With Guard for "2int" error)
+            // 5. HANDLE NUMBERS (May guard para sa 2int error)
             if (Character.isDigit(c)) {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
                 boolean hasDecimal = false;
                 
+                // Kunin lahat ng digits (pati decimal point kung meron)
                 while (i < length && (Character.isDigit(input.charAt(i)) || input.charAt(i) == '.')) {
                     if (input.charAt(i) == '.') {
-                        if (hasDecimal) break; 
+                        if (hasDecimal) break; // Bawal ang dalawang decimal points
                         hasDecimal = true;
                     }
                     sb.append(input.charAt(i));
                     i++;
                 }
 
-                // === GUARD: Check if followed by letter (e.g. "2int") ===
+                // === GUARD: Check kung may letter pagkatapos ng number (e.g. "2int") ===
+                // Bawal ngani to sa Java. Error agad.
                 if (i < length && (Character.isLetter(input.charAt(i)) || input.charAt(i) == '_')) {
                      addTokenToTable("LEXICAL ERROR", "Invalid Identifier starting with digit: " + sb.toString() + input.charAt(i) + "...");
                      JOptionPane.showMessageDialog(this, 
                         "Lexical Error: Identifiers cannot start with numbers (found '" + sb.toString() + input.charAt(i) + "...')", 
                         "Invalid Token", 
                         JOptionPane.ERROR_MESSAGE);
-                     return; // STOP parsing
+                     return; // STOP parsing, tapusin na agad
                 }
                 
                 tokens.add(new Token("NUMBER", sb.toString(), startPos));
                 continue;
             }
 
-            // 6. HANDLE OPERATORS
+            // 6. HANDLE OPERATORS (+, -, =, ==, etc.)
             if (isOperatorChar(c)) {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
                 while (i < length && isOperatorChar(input.charAt(i))) {
+                    // Check baka comment na yung susunod (//)
                     if (input.charAt(i) == '/' && i + 1 < length && input.charAt(i+1) == '/') {
-                        break; // Stop if we hit a comment
+                        break; 
                     }
                     sb.append(input.charAt(i));
                     i++;
@@ -410,15 +417,17 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // 7. HANDLE IDENTIFIERS AND KEYWORDS
+            // 7. HANDLE IDENTIFIERS AND KEYWORDS (Words)
             if (Character.isLetter(c) || c == '_') {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
+                // Kunin buong word
                 while (i < length && (Character.isLetterOrDigit(input.charAt(i)) || input.charAt(i) == '_')) {
                     sb.append(input.charAt(i));
                     i++;
                 }
                 String word = sb.toString();
+                // Check kung keyword (int, if, else) o variable name
                 if (isKeyword(word)) {
                     tokens.add(new Token("KEYWORD", word, startPos));
                 } else {
@@ -427,19 +436,19 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // 8. UNKNOWN
+            // 8. UNKNOWN (Di kilalang mga bisaya)
             addTokenToTable("UNKNOWN", Character.toString(c));
             i++;
         }
 
-        // Semantic Check
+        // Semantic Check (Logic ng grammar)
         String semanticError = validateTokenSequence(tokens);
         if (semanticError != null) {
             addTokenToTable("SEMANTIC ERROR", semanticError);
             JOptionPane.showMessageDialog(this, semanticError, "Semantic Error", JOptionPane.ERROR_MESSAGE);
         }
 
-        // Output to Table
+        // Ilagay na sa Table ang mga tokens
         for (Token token : tokens) {
             addTokenToTable(token.type, token.value);
         }
