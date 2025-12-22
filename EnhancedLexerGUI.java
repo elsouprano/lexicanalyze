@@ -15,8 +15,8 @@ public class EnhancedLexerGUI extends JFrame {
 
     public EnhancedLexerGUI() {
         // === WINDOW SETUP ===
-        setTitle("Javai++ Tokenizer");
-        setSize(700, 600);
+        setTitle("Javai++ Tokenizer (Ang katapusan)");
+        setSize(750, 650);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
@@ -25,11 +25,11 @@ public class EnhancedLexerGUI extends JFrame {
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createTitledBorder("Source Code Input"));
 
-        inputArea = new JTextArea(8, 40);
-        inputArea.setText("int[] squared =\n    Arrays.stream(nums)\n          .map(n : n * n)\n          .toArray();");
+        inputArea = new JTextArea(10, 40);
         inputArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
         JButton analyzeBtn = new JButton("Analyze / Tokenize");
+        analyzeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
         analyzeBtn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -50,7 +50,7 @@ public class EnhancedLexerGUI extends JFrame {
         };
         resultTable = new JTable(tableModel);
         resultTable.setFillsViewportHeight(true);
-        resultTable.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        resultTable.setFont(new Font("Monospaced", Font.PLAIN, 14));
         resultTable.setRowHeight(25);
 
         JScrollPane tableScroll = new JScrollPane(resultTable);
@@ -73,7 +73,7 @@ public class EnhancedLexerGUI extends JFrame {
         }
     }
 
-    // === COMPREHENSIVE INPUT VALIDATION ===
+    // === 1. INPUT VALIDATION ===
     private String validateInput(String input) {
         if (input == null || input.trim().isEmpty()) {
             return "Error: Input cannot be empty";
@@ -81,13 +81,25 @@ public class EnhancedLexerGUI extends JFrame {
 
         // Check for balanced parentheses, brackets, and braces
         int parenCount = 0, bracketCount = 0, braceCount = 0;
-        for (char c : input.toCharArray()) {
-            if (c == '(') parenCount++;
-            if (c == ')') parenCount--;
-            if (c == '[') bracketCount++;
-            if (c == ']') bracketCount--;
-            if (c == '{') braceCount++;
-            if (c == '}') braceCount--;
+        boolean inString = false;
+        
+        // Iterate chars to check balance, ignoring things inside strings
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            
+            if (c == '"' && (i == 0 || input.charAt(i-1) != '\\')) {
+                inString = !inString;
+                continue;
+            }
+            
+            if (!inString) {
+                if (c == '(') parenCount++;
+                if (c == ')') parenCount--;
+                if (c == '[') bracketCount++;
+                if (c == ']') bracketCount--;
+                if (c == '{') braceCount++;
+                if (c == '}') braceCount--;
+            }
 
             if (parenCount < 0) return "Error: Mismatched parentheses - closing ) without opening (";
             if (bracketCount < 0) return "Error: Mismatched brackets - closing ] without opening [";
@@ -98,108 +110,34 @@ public class EnhancedLexerGUI extends JFrame {
         if (bracketCount != 0) return "Error: Unbalanced square brackets [ ]";
         if (braceCount != 0) return "Error: Unbalanced curly braces { }";
 
-        // Must end with semicolon
-        if (!input.trim().endsWith(";")) {
-            return "Error: Statement must end with a semicolon ;";
+        // Must end with semicolon or brace (for blocks)
+        String trimmed = input.trim();
+        if (!trimmed.endsWith(";") && !trimmed.endsWith("}")) {
+             return "Error: Code snippet must generally end with a semicolon ; or brace }";
         }
-
-        // Check for invalid character sequences
-        String error = checkInvalidPatterns(input);
-        if (error != null) return error;
 
         return null;
     }
 
-    // Check for common invalid patterns
-    private String checkInvalidPatterns(String input) {
-        // Check for numbers immediately after identifiers (e.g., int[]2, var123abc)
-        for (int i = 0; i < input.length() - 1; i++) {
-            char curr = input.charAt(i);
-            char next = input.charAt(i + 1);
-            
-            // Check for ]followed by digit (e.g., int[]2)
-            if (curr == ']' && Character.isDigit(next)) {
-                return "Error: Invalid syntax - digit cannot follow ']' directly (found ']" + next + "')";
-            }
-            
-            // Check for multiple dots in sequence (e.g., ..)
-            if (curr == '.' && next == '.' && (i == 0 || !Character.isDigit(input.charAt(i-1)))) {
-                return "Error: Invalid syntax - multiple consecutive dots '..'";
-            }
-            
-            // Check for invalid operator combinations
-            if (curr == '=' && next == '=' && i + 2 < input.length() && input.charAt(i + 2) == '=') {
-                return "Error: Invalid operator '===' - Java uses '==' for equality";
-            }
-        }
-        
-        // Check for identifiers that mix letters and numbers incorrectly (e.g., int2, var3x)
-        String[] tokens = input.split("[\\s\\[\\]\\{\\}\\(\\),;.=+\\-*/%<>!&|:]+");
-        for (String token : tokens) {
-            if (token.isEmpty()) continue;
-            
-            // Check if token starts with digit but contains letters (invalid identifier)
-            if (token.length() > 0 && Character.isDigit(token.charAt(0))) {
-                for (int i = 1; i < token.length(); i++) {
-                    if (Character.isLetter(token.charAt(i))) {
-                        return "Error: Invalid identifier '" + token + "' - identifiers cannot start with a digit";
-                    }
-                }
-            }
-            
-            // Check for Java keywords followed by digits (e.g., int2, String5)
-            if (token.length() > 0) {
-                String prefix = "";
-                int digitStartIndex = -1;
-                
-                // Find where digits start in the token
-                for (int i = 0; i < token.length(); i++) {
-                    if (Character.isDigit(token.charAt(i))) {
-                        prefix = token.substring(0, i);
-                        digitStartIndex = i;
-                        break;
-                    }
-                }
-                
-                // If we found digits and the prefix (yung dulo) is a keyword
-                if (digitStartIndex > 0 && isKeyword(prefix)) {
-                    return "Error: Invalid type name '" + token + "' - Java keywords cannot be combined with numbers";
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    // === ENHANCED SEMANTIC VALIDATION ===
+    // === 2. SEMANTIC VALIDATION ===
     private String validateTokenSequence(ArrayList<Token> tokens) {
-        // Remove whitespace and indent tokens for validation
-        ArrayList<Token> cleanTokens = new ArrayList<>();
-        for (Token t : tokens) {
-            if (!t.type.equals("WHITESPACE") && !t.type.equals("INDENT DELIMITER")) {
-                cleanTokens.add(t);
-            }
-        }
-
+        // tokens list is already clean (no whitespace), so we pass it directly
+        
         // Validate variable declaration syntax
-        String declError = validateDeclarations(cleanTokens);
+        String declError = validateDeclarations(tokens);
         if (declError != null) return declError;
 
         // Validate array syntax
-        String arrayError = validateArraySyntax(cleanTokens);
+        String arrayError = validateArraySyntax(tokens);
         if (arrayError != null) return arrayError;
 
         // Validate identifier naming rules
-        String identError = validateIdentifiers(cleanTokens);
+        String identError = validateIdentifiers(tokens);
         if (identError != null) return identError;
 
         // Validate operator usage
-        String opError = validateOperators(cleanTokens);
+        String opError = validateOperators(tokens);
         if (opError != null) return opError;
-
-        // Validate method calls and chaining
-        String methodError = validateMethodCalls(cleanTokens);
-        if (methodError != null) return methodError;
 
         return null;
     }
@@ -211,7 +149,7 @@ public class EnhancedLexerGUI extends JFrame {
             
             // Check for type declarations (int, String, etc.)
             if (t.type.equals("KEYWORD") && isTypeKeyword(t.value)) {
-                // Next token should be [] or identifier
+                
                 if (i + 1 >= tokens.size()) {
                     return "Error: Incomplete declaration after '" + t.value + "'";
                 }
@@ -223,33 +161,18 @@ public class EnhancedLexerGUI extends JFrame {
                     if (i + 2 >= tokens.size() || !tokens.get(i + 2).type.equals("R_BRACKET")) {
                         return "Error: Array brackets must be closed '[]' after type '" + t.value + "'";
                     }
-                    
-                    // After [], must be an identifier
                     if (i + 3 >= tokens.size() || !tokens.get(i + 3).type.equals("IDENTIFIER")) {
                         return "Error: Expected variable name after '" + t.value + "[]'";
                     }
-                    
-                    // Check what comes after identifier
-                    if (i + 4 < tokens.size()) {
-                        Token afterIdent = tokens.get(i + 4);
-                        if (afterIdent.type.equals("NUMBER")) {
-                            return "Error: Invalid syntax - number '" + afterIdent.value + 
-                                   "' cannot follow variable name '" + tokens.get(i + 3).value + "'";
-                        }
-                        if (!afterIdent.type.equals("ASSIGN") && !afterIdent.type.equals("SEMICOLON") && 
-                            !afterIdent.type.equals("COMMA")) {
-                            return "Error: Expected '=', ',', or ';' after variable name '" + 
-                                   tokens.get(i + 3).value + "', found " + afterIdent.type;
-                        }
-                    }
-                } else if (next.type.equals("IDENTIFIER")) {
-                    // Regular variable declaration (e.g., int x)
-                    // Check what comes after identifier
+                } 
+                // Regular variable declaration (e.g., int x)
+                else if (next.type.equals("IDENTIFIER")) {
                     if (i + 2 < tokens.size()) {
                         Token afterIdent = tokens.get(i + 2);
-                        if (afterIdent.type.equals("NUMBER")) {
-                            return "Error: Invalid syntax - number '" + afterIdent.value + 
-                                   "' cannot follow variable name '" + next.value + "'";
+                        // Prevent "int x 5;"
+                        if (afterIdent.type.equals("NUMBER") || afterIdent.type.equals("STRING_LITERAL")) {
+                            return "Error: Missing operator. Value '" + afterIdent.value + 
+                                   "' cannot directly follow variable '" + next.value + "'";
                         }
                     }
                 } else {
@@ -260,7 +183,7 @@ public class EnhancedLexerGUI extends JFrame {
         return null;
     }
 
-    // Validate array initialization and access
+    // Validate array initialization
     private String validateArraySyntax(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
@@ -282,8 +205,8 @@ public class EnhancedLexerGUI extends JFrame {
                     if (expectingValue) {
                         if (!current.type.equals("NUMBER") && 
                             !current.type.equals("IDENTIFIER") &&
-                            !current.type.equals("STRING")) {
-                            return "Error: Expected a value in array initialization, found " + 
+                            !current.type.equals("STRING_LITERAL")) {
+                            return "Error: Expected a value in array, found " + 
                                    current.type + " '" + current.value + "'";
                         }
                         expectingValue = false;
@@ -293,134 +216,61 @@ public class EnhancedLexerGUI extends JFrame {
                             expectingValue = true;
                             expectingComma = false;
                         } else {
-                            return "Error: Missing comma between array elements. Expected ',' after '" + 
-                                   tokens.get(j - 1).value + "', found " + current.type + " '" + current.value + "'";
+                            return "Error: Missing comma between array elements.";
                         }
                     }
                     j++;
-                }
-
-                if (!isEmpty && expectingValue) {
-                    return "Error: Trailing comma in array initialization - expected value after last comma";
                 }
             }
         }
         return null;
     }
 
-    // Validate identifier naming rules
+    // Validate identifier naming
     private String validateIdentifiers(ArrayList<Token> tokens) {
         Set<String> reservedWords = getReservedWords();
         
         for (Token t : tokens) {
             if (t.type.equals("IDENTIFIER")) {
                 String name = t.value;
-                
-                // Check if identifier is a reserved word
                 if (reservedWords.contains(name.toLowerCase())) {
-                    return "Error: '" + name + "' is a reserved keyword and cannot be used as an identifier";
+                    return "Error: '" + name + "' is a reserved keyword";
                 }
-                
-                // Check for invalid characters (already handled by lexer, but double-check)
-                if (!name.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
-                    return "Error: Invalid identifier '" + name + "' - must start with letter or underscore";
-                }
-                
-                // Check for identifiers that are too similar to keywords (common mistake)
-                if (name.equalsIgnoreCase("Int") || name.equalsIgnoreCase("Void")) {
-                    return "Error: Identifier '" + name + "' is too similar to keyword (keywords are lowercase in Java)";
+                // Double check pattern, though lexer handles most
+                if (!name.matches("[a-zA-Z_$][a-zA-Z0-9_$]*")) {
+                    return "Error: Invalid identifier format '" + name + "'";
                 }
             }
         }
         return null;
     }
 
-    // Validate operator usage and positioning
+    // Validate operators
     private String validateOperators(ArrayList<Token> tokens) {
         for (int i = 0; i < tokens.size(); i++) {
             Token t = tokens.get(i);
             
-            // Check for operator at start (except unary operators)
+            // Check for operator at start (except unary)
             if (i == 0 && isOperator(t.type) && !isUnaryOperator(t.type)) {
                 return "Error: Statement cannot start with operator '" + t.value + "'";
             }
             
-            // Check for consecutive operators (except valid combinations)
+            // Check for consecutive operators
             if (i < tokens.size() - 1 && isOperator(t.type)) {
                 Token next = tokens.get(i + 1);
                 if (isOperator(next.type) && !isValidOperatorSequence(t.value, next.value)) {
                     return "Error: Invalid operator sequence '" + t.value + next.value + "'";
                 }
             }
-            
-            // Check for operator before semicolon
-            if (t.type.equals("SEMICOLON") && i > 0) {
-                Token prev = tokens.get(i - 1);
-                if (isOperator(prev.type) && !prev.type.equals("R_PAREN") && !prev.type.equals("R_BRACKET")) {
-                    return "Error: Statement cannot end with operator '" + prev.value + "' before semicolon";
-                }
-            }
         }
         return null;
     }
 
-    // Validate method calls and dot notation
-    private String validateMethodCalls(ArrayList<Token> tokens) {
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            Token t = tokens.get(i);
-            
-            // Check for dot notation
-            if (t.type.equals("DOT")) {
-                // Dot must have something before it
-                if (i == 0) {
-                    return "Error: '.' cannot appear at the start of a statement";
-                }
-                
-                Token prev = tokens.get(i - 1);
-                if (!prev.type.equals("IDENTIFIER") && !prev.type.equals("R_PAREN") && !prev.type.equals("R_BRACKET")) {
-                    return "Error: Invalid token before '.' - expected identifier or method call";
-                }
-                
-                // Dot must be followed by identifier or keyword (for method names)
-                if (i + 1 >= tokens.size()) {
-                    return "Error: Statement cannot end with '.'";
-                }
-                
-                Token next = tokens.get(i + 1);
-                if (!next.type.equals("IDENTIFIER") && !next.type.equals("KEYWORD")) {
-                    return "Error: Expected method or field name after '.', found " + next.type + " '" + next.value + "'";
-                }
-            }
-            
-            // Check method calls (identifier followed by parenthesis)
-            if (t.type.equals("IDENTIFIER") && i + 1 < tokens.size()) {
-                Token next = tokens.get(i + 1);
-                if (next.type.equals("L_PAREN")) {
-                    // This is a method call - validate parentheses content
-                    int parenDepth = 1;
-                    int j = i + 2;
-                    boolean hasContent = false;
-                    
-                    while (j < tokens.size() && parenDepth > 0) {
-                        Token curr = tokens.get(j);
-                        if (curr.type.equals("L_PAREN")) parenDepth++;
-                        if (curr.type.equals("R_PAREN")) parenDepth--;
-                        if (parenDepth > 0 && !curr.type.equals("L_PAREN")) hasContent = true;
-                        j++;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    // Helper methods
+    // === HELPER METHODS ===
     private boolean isTypeKeyword(String word) {
         String[] types = {"int", "double", "float", "char", "boolean", "byte", 
                          "short", "long", "String", "void"};
-        for (String type : types) {
-            if (word.equals(type)) return true;
-        }
+        for (String type : types) if (word.equals(type)) return true;
         return false;
     }
 
@@ -436,98 +286,86 @@ public class EnhancedLexerGUI extends JFrame {
     }
 
     private boolean isValidOperatorSequence(String op1, String op2) {
-        // Allow unary operators after binary operators
         return (op2.equals("!") || op2.equals("-") || op2.equals("+"));
     }
 
     private Set<String> getReservedWords() {
         Set<String> reserved = new HashSet<>();
         String[] words = {
-            "abstract", "assert", "boolean", "break", "byte", "case", "catch",
-            "char", "class", "const", "continue", "default", "do", "double",
-            "else", "enum", "extends", "final", "finally", "float", "for",
-            "goto", "if", "implements", "import", "instanceof", "int", "interface",
-            "long", "native", "new", "package", "private", "protected", "public",
-            "return", "short", "static", "strictfp", "super", "switch", "synchronized",
-            "this", "throw", "throws", "transient", "try", "void", "volatile", "while",
-            "true", "false", "null", "var"
+            "abstract", "boolean", "break", "byte", "case", "catch", "char", "class", 
+            "continue", "default", "do", "double", "else", "enum", "extends", "final", 
+            "finally", "float", "for", "if", "implements", "import", "instanceof", "int", 
+            "interface", "long", "new", "package", "private", "protected", "public", 
+            "return", "short", "static", "super", "switch", "this", "throw", "throws", 
+            "try", "void", "while", "true", "false", "null", "var"
         };
-        for (String word : words) {
-            reserved.add(word);
-        }
+        for (String w : words) reserved.add(w);
         return reserved;
     }
 
-    // === ENHANCED LEXICAL ANALYZER ===
+    // === 3. CORE LEXER ENGINE ===
     private void runAnalysis() {
         tableModel.setRowCount(0);
 
         String input = inputArea.getText();
-
-        // Validate input syntax
+        
+        // Basic syntax check
         String validationError = validateInput(input);
         if (validationError != null) {
             addTokenToTable("VALIDATION ERROR", validationError);
-            JOptionPane.showMessageDialog(this, 
-                validationError, 
-                "Invalid Input", 
-                JOptionPane.ERROR_MESSAGE);
-            return;
+            JOptionPane.showMessageDialog(this, validationError, "Syntax Error", JOptionPane.WARNING_MESSAGE);
         }
 
-        // Tokenize the input
         ArrayList<Token> tokens = new ArrayList<>();
         int length = input.length();
         int i = 0;
-        boolean atLineStart = true;
 
         while (i < length) {
             char c = input.charAt(i);
 
-            // Handle indentation at the start of each line
-            if (atLineStart && (c == ' ' || c == '\t')) {
-                tokens.add(new Token("INDENT DELIMITER", "  ", i));
-
-                while (i < length && (input.charAt(i) == ' ' || input.charAt(i) == '\t')) {
-                    i++;
-                }
-
-                if (i < length && input.charAt(i) != '\n' && input.charAt(i) != '\r') {
-                    atLineStart = false;
-                }
-                continue;
-            }
-
-            // Handle newlines
-            if (c == '\n' || c == '\r') {
-                atLineStart = true;
+            // 1. SKIP WHITESPACE (Clean output)
+            if (Character.isWhitespace(c)) {
                 i++;
-                if (c == '\r' && i < length && input.charAt(i) == '\n') {
+                continue;
+            }
+
+            // 2. HANDLE COMMENTS (Ignore)
+            if (c == '/' && i + 1 < length && input.charAt(i + 1) == '/') {
+                i += 2;
+                while (i < length && input.charAt(i) != '\n' && input.charAt(i) != '\r') {
                     i++;
                 }
                 continue;
             }
 
-            // Handle whitespace
-            if (c == ' ' || c == '\t') {
-                tokens.add(new Token("WHITESPACE", " ", i));
-                while (i < length && (input.charAt(i) == ' ' || input.charAt(i) == '\t')) {
+            // 3. HANDLE STRING LITERALS (Full string support)
+            if (c == '"') {
+                StringBuilder sb = new StringBuilder();
+                sb.append(c);
+                int startPos = i;
+                i++; // skip opening quote
+                
+                while (i < length) {
+                    char nextC = input.charAt(i);
+                    sb.append(nextC);
                     i++;
+                    if (nextC == '"' && input.charAt(i-2) != '\\') {
+                        break; 
+                    }
                 }
+                tokens.add(new Token("STRING_LITERAL", sb.toString(), startPos));
                 continue;
             }
 
-            atLineStart = false;
-
-            // Handle single-character symbols
+            // 4. HANDLE SINGLE CHAR SYMBOLS
             if (isSingleCharSymbol(c)) {
                 String type = getSymbolType(c);
                 tokens.add(new Token(type, Character.toString(c), i));
-                i++; 
+                i++;
                 continue;
             }
 
-            // Handle numbers
+            // 5. HANDLE NUMBERS (With Guard for "2int" error)
             if (Character.isDigit(c)) {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
@@ -535,37 +373,35 @@ public class EnhancedLexerGUI extends JFrame {
                 
                 while (i < length && (Character.isDigit(input.charAt(i)) || input.charAt(i) == '.')) {
                     if (input.charAt(i) == '.') {
-                        // Check if next char is also a dot or a letter (invalid)
-                        if (i + 1 < length && (input.charAt(i + 1) == '.' || Character.isLetter(input.charAt(i + 1)))) {
-                            break;
-                        }
-                        if (hasDecimal) break;
+                        if (hasDecimal) break; 
                         hasDecimal = true;
                     }
                     sb.append(input.charAt(i));
                     i++;
                 }
-                
-                // Check for invalid number followed by identifier
+
+                // === GUARD: Check if followed by letter (e.g. "2int") ===
                 if (i < length && (Character.isLetter(input.charAt(i)) || input.charAt(i) == '_')) {
-                    addTokenToTable("LEXICAL ERROR", "Invalid token: number '" + sb.toString() + 
-                                  "' followed by identifier starting with '" + input.charAt(i) + "'");
-                    JOptionPane.showMessageDialog(this, 
-                        "Lexical Error: Numbers cannot be directly followed by letters", 
+                     addTokenToTable("LEXICAL ERROR", "Invalid Identifier starting with digit: " + sb.toString() + input.charAt(i) + "...");
+                     JOptionPane.showMessageDialog(this, 
+                        "Lexical Error: Identifiers cannot start with numbers (found '" + sb.toString() + input.charAt(i) + "...')", 
                         "Invalid Token", 
                         JOptionPane.ERROR_MESSAGE);
-                    return;
+                     return; // STOP parsing
                 }
                 
                 tokens.add(new Token("NUMBER", sb.toString(), startPos));
                 continue;
             }
 
-            // Handle operators
+            // 6. HANDLE OPERATORS
             if (isOperatorChar(c)) {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
                 while (i < length && isOperatorChar(input.charAt(i))) {
+                    if (input.charAt(i) == '/' && i + 1 < length && input.charAt(i+1) == '/') {
+                        break; // Stop if we hit a comment
+                    }
                     sb.append(input.charAt(i));
                     i++;
                 }
@@ -574,7 +410,7 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // Handle identifiers and keywords
+            // 7. HANDLE IDENTIFIERS AND KEYWORDS
             if (Character.isLetter(c) || c == '_') {
                 StringBuilder sb = new StringBuilder();
                 int startPos = i;
@@ -591,28 +427,19 @@ public class EnhancedLexerGUI extends JFrame {
                 continue;
             }
 
-            // Unknown character
-            tokens.add(new Token("UNKNOWN", Character.toString(c), i));
-            addTokenToTable("LEXICAL ERROR", "Unknown character: '" + c + "' at position " + i);
-            JOptionPane.showMessageDialog(this, 
-                "Lexical Error: Unknown character '" + c + "'", 
-                "Invalid Character", 
-                JOptionPane.ERROR_MESSAGE);
-            return;
+            // 8. UNKNOWN
+            addTokenToTable("UNKNOWN", Character.toString(c));
+            i++;
         }
 
-        // Validate token sequence
+        // Semantic Check
         String semanticError = validateTokenSequence(tokens);
         if (semanticError != null) {
             addTokenToTable("SEMANTIC ERROR", semanticError);
-            JOptionPane.showMessageDialog(this, 
-                semanticError, 
-                "Invalid Token Sequence", 
-                JOptionPane.ERROR_MESSAGE);
-            return;
+            JOptionPane.showMessageDialog(this, semanticError, "Semantic Error", JOptionPane.ERROR_MESSAGE);
         }
 
-        // Display all tokens
+        // Output to Table
         for (Token token : tokens) {
             addTokenToTable(token.type, token.value);
         }
@@ -662,31 +489,24 @@ public class EnhancedLexerGUI extends JFrame {
             case "&&": return "LOGICAL_AND";
             case "||": return "LOGICAL_OR";
             case "!": return "LOGICAL_NOT";
-            case "&": return "BITWISE_AND";
-            case "|": return "BITWISE_OR";
-            case ":": return "COLON";
-            case "->": return "LAMBDA_ARROW";
+            case "++": return "INCREMENT";
+            case "--": return "DECREMENT";
+            case "+=": return "ADD_ASSIGN";
+            case "-=": return "SUB_ASSIGN";
             default: return "OPERATOR";
         }
     }
 
     private boolean isKeyword(String word) {
         String[] keywords = {
-            "abstract", "assert", "boolean", "break", "byte", "case", "catch",
-            "char", "class", "const", "continue", "default", "do", "double",
-            "else", "enum", "extends", "final", "finally", "float", "for",
-            "if", "implements", "import", "instanceof", "int", "interface",
-            "long", "native", "new", "package", "private", "protected", "public",
-            "return", "short", "static", "strictfp", "super", "switch", "synchronized",
-            "this", "throw", "throws", "transient", "try", "void", "volatile", "while",
-            "true", "false", "null", "var", "String"
+            "abstract", "boolean", "break", "byte", "case", "catch", "char", "class", 
+            "continue", "default", "do", "double", "else", "enum", "extends", "final", 
+            "finally", "float", "for", "if", "implements", "import", "instanceof", "int", 
+            "interface", "long", "new", "package", "private", "protected", "public", 
+            "return", "short", "static", "super", "switch", "this", "throw", "throws", 
+            "try", "void", "while", "true", "false", "null", "var", "String"
         };
-
-        for (String keyword : keywords) {
-            if (word.equals(keyword)) {
-                return true;
-            }
-        }
+        for (String k : keywords) if (word.equals(k)) return true;
         return false;
     }
 
