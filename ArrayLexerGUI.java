@@ -5,17 +5,16 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
 
-public class ArrayLexerGUI extends JFrame {
+public class EnhancedLexerGUI extends JFrame {
 
-    // GUI components that we'll use throughout the program
-    private JTextArea inputArea;      // Where user types code
-    private JTable resultTable;       // Shows the tokens in a table
-    private DefaultTableModel tableModel;  // Manages the table data
+    private JTextArea inputArea;
+    private JTable resultTable;
+    private DefaultTableModel tableModel;
 
-    public ArrayLexerGUI() {
+    public EnhancedLexerGUI() {
         // === WINDOW SETUP ===
-        setTitle("Array Lexical Analyzer");
-        setSize(600, 500);
+        setTitle("Javai++ Tokenizer");
+        setSize(700, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
@@ -24,8 +23,8 @@ public class ArrayLexerGUI extends JFrame {
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBorder(BorderFactory.createTitledBorder("Source Code Input"));
         
-        inputArea = new JTextArea(3, 40);
-        inputArea.setText("int[] numbers = {10, 20, 50};");
+        inputArea = new JTextArea(8, 40);
+        inputArea.setText("int[] squared =\n    Arrays.stream(nums)\n          .map(n : n * n)\n          .toArray();");
         inputArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
         
         JButton analyzeBtn = new JButton("Analyze / Tokenize");
@@ -41,7 +40,12 @@ public class ArrayLexerGUI extends JFrame {
 
         // === OUTPUT SECTION (CENTER) ===
         String[] columnNames = {"Token Type", "Value / Symbol"};
-        tableModel = new DefaultTableModel(columnNames, 0);
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Bawal edith sa result table
+            }
+        };
         resultTable = new JTable(tableModel);
         resultTable.setFillsViewportHeight(true);
         resultTable.setFont(new Font("SansSerif", Font.PLAIN, 14));
@@ -54,142 +58,240 @@ public class ArrayLexerGUI extends JFrame {
         add(tableScroll, BorderLayout.CENTER);
     }
 
-    // === INPUT VALIDATION ===
-    // Returns error message if input is invalid, null if valid
+    // === ENHANCED INPUT VALIDATION ===
     private String validateInput(String input) {
-        // Check 1: Empty or whitespace-only input
         if (input == null || input.trim().isEmpty()) {
             return "Error: Input cannot be empty";
         }
 
-        // Check 2: Must contain at least one valid keyword for array declaration
-        if (!input.matches(".*\\b(int|String|float|double)\\s*\\[\\].*")) {
-            return "Error: Input must contain a valid array declaration (int[], String[], float[], or double[])";
-        }
-
-        // Check 3: Must have proper array syntax with brackets
-        if (!input.contains("[") || !input.contains("]")) {
-            return "Error: Array declaration must include square brackets []";
-        }
-
-        // Check 4: Check for invalid characters (only allow letters, digits, spaces, and valid symbols)
-        if (input.matches(".*[^a-zA-Z0-9\\s\\[\\]\\{\\}\\,\\=\\;].*")) {
-            return "Error: Input contains invalid characters. Only letters, numbers, and symbols [ ] { } , = ; are allowed";
-        }
-
-        // Check 5: Must have an identifier (variable name) after the type
-        if (!input.matches(".*\\b(int|String|float|double)\\s*\\[\\]\\s+[a-zA-Z][a-zA-Z0-9]*.*")) {
-            return "Error: Array declaration must have a valid identifier (variable name)";
-        }
-
-        // Check 6: If assignment operator exists, must have values
-        if (input.contains("=") && !input.contains("{")) {
-            return "Error: Array assignment must use curly braces { } for initialization";
-        }
-
-        // Check 7: Check for balanced brackets and braces
-        int bracketCount = 0;
-        int braceCount = 0;
+        // Check for balanced parentheses, brackets, and braces
+        int parenCount = 0, bracketCount = 0, braceCount = 0;
         for (char c : input.toCharArray()) {
+            if (c == '(') parenCount++;
+            if (c == ')') parenCount--;
             if (c == '[') bracketCount++;
             if (c == ']') bracketCount--;
             if (c == '{') braceCount++;
             if (c == '}') braceCount--;
             
-            // Brackets or braces should never go negative
+            if (parenCount < 0) return "Error: Mismatched parentheses - closing ) without opening (";
             if (bracketCount < 0) return "Error: Mismatched brackets - closing ] without opening [";
             if (braceCount < 0) return "Error: Mismatched braces - closing } without opening {";
         }
         
-        if (bracketCount != 0) {
-            return "Error: Unbalanced square brackets [ ]";
-        }
-        if (braceCount != 0) {
-            return "Error: Unbalanced curly braces { }";
-        }
+        if (parenCount != 0) return "Error: Unbalanced parentheses ( )";
+        if (bracketCount != 0) return "Error: Unbalanced square brackets [ ]";
+        if (braceCount != 0) return "Error: Unbalanced curly braces { }";
 
-        // Check 8: Must end with semicolon
+        // Must end with semicolon
         if (!input.trim().endsWith(";")) {
             return "Error: Statement must end with a semicolon ;";
         }
 
-        // Check 9: Variable name cannot be a keyword
-        String varPattern = "\\b(int|String|float|double)\\s*\\[\\]\\s+([a-zA-Z][a-zA-Z0-9]*)";
-        java.util.regex.Pattern p = java.util.regex.Pattern.compile(varPattern);
-        java.util.regex.Matcher m = p.matcher(input);
-        if (m.find()) {
-            String varName = m.group(2);
-            if (varName.matches("int|String|float|double|new")) {
-                return "Error: Variable name '" + varName + "' cannot be a reserved keyword";
-            }
-        }
-
-        return null; // All validation passed
+        return null;
     }
 
-    // === LEXICAL ANALYZER ===
+    // === SEMANTIC VALIDATION ===
+    private String validateTokenSequence(ArrayList<Token> tokens) {
+        // Check for array initialization syntax: { num , num , num }
+        for (int i = 0; i < tokens.size(); i++) {
+            Token t = tokens.get(i);
+            
+            // Found opening brace of array initialization
+            if (t.type.equals("L_BRACE")) {
+                int j = i + 1;
+                boolean expectingValue = true;
+                boolean expectingComma = false;
+                
+                while (j < tokens.size() && !tokens.get(j).type.equals("R_BRACE")) {
+                    Token current = tokens.get(j);
+                    
+                    // Skip INDENT, WHITESPACE tokens
+                    if (current.type.equals("INDENT") || 
+                        current.type.equals("WHITESPACE")) {
+                        j++;
+                        continue;
+                    }
+                    
+                    if (expectingValue) {
+                        if (!current.type.equals("NUMBER") && 
+                            !current.type.equals("IDENTIFIER") &&
+                            !current.type.equals("STRING")) {
+                            return "Error: Expected a value in array initialization at position " + j + 
+                                   ", found " + current.type + " '" + current.value + "'";
+                        }
+                        expectingValue = false;
+                        expectingComma = true;
+                    } else if (expectingComma) {
+                        if (current.type.equals("COMMA")) {
+                            expectingValue = true;
+                            expectingComma = false;
+                        } else if (current.type.equals("NUMBER") || 
+                                   current.type.equals("IDENTIFIER") ||
+                                   current.type.equals("STRING")) {
+                            return "Error: Missing comma between array elements. Found '" + 
+                                   tokens.get(j-1).value + "' and '" + current.value + "' without comma separator";
+                        } else {
+                            return "Error: Expected comma or closing brace in array initialization, found " + 
+                                   current.type + " '" + current.value + "'";
+                        }
+                    }
+                    j++;
+                }
+            }
+        }
+        return null;
+    }
+    
+    // Token class to store type and value
+    private static class Token {
+        String type;
+        String value;
+        
+        Token(String type, String value) {
+            this.type = type;
+            this.value = value;
+        }
+    }
+
+    // === ENHANCED LEXICAL ANALYZER WITH INDENTATION ===
     private void runAnalysis() {
         tableModel.setRowCount(0);
         
         String input = inputArea.getText();
         
-        // === VALIDATE INPUT FIRST ===
+        // Validate input syntax
         String validationError = validateInput(input);
         if (validationError != null) {
-            // Show error message in the table
             addTokenToTable("VALIDATION ERROR", validationError);
             JOptionPane.showMessageDialog(this, 
                 validationError, 
                 "Invalid Input", 
                 JOptionPane.ERROR_MESSAGE);
-            return; // Stop processing
+            return;
         }
         
-        // If validation passed, proceed with tokenization
+        // Tokenize the input
+        ArrayList<Token> tokens = new ArrayList<>();
         int length = input.length();
         int i = 0;
+        boolean atLineStart = true;
 
         while (i < length) {
             char c = input.charAt(i);
 
-            if (Character.isWhitespace(c)) {
+            // Handle indentation at the start of each line
+            if (atLineStart && (c == ' ' || c == '\t')) {
+                // Found indentation
+                tokens.add(new Token("INDENT DELIMITER", "  "));
+                
+                // Skip all indentation characters
+                while (i < length && (input.charAt(i) == ' ' || input.charAt(i) == '\t')) {
+                    i++;
+                }
+                
+                // Check if line is not just whitespace
+                if (i < length && input.charAt(i) != '\n' && input.charAt(i) != '\r') {
+                    atLineStart = false;
+                }
+                continue;
+            }
+
+            // Handle newlines
+            if (c == '\n' || c == '\r') {
+                atLineStart = true;
+                i++;
+                // Skip \r\n combination (new line to)
+                if (c == '\r' && i < length && input.charAt(i) == '\n') {
+                    i++;
+                }
+                continue;
+            }
+
+            // Handle whitespace (spaces/tabs not at line start)
+            if (c == ' ' || c == '\t') {
+                tokens.add(new Token("WHITESPACE", " "));
+                // Skip consecutive whitespace
+                while (i < length && (input.charAt(i) == ' ' || input.charAt(i) == '\t')) {
+                    i++;
+                }
+                continue;
+            }
+
+            // If we encounter non-whitespace, we're no longer at line start
+            atLineStart = false;
+
+            // Handle single-character symbols
+            if (isSingleCharSymbol(c)) {
+                String type = getSymbolType(c);
+                tokens.add(new Token(type, Character.toString(c)));
                 i++; 
                 continue;
             }
 
-            if (isSymbol(c)) {
-                addTokenToTable(getSymbolType(c), Character.toString(c));
-                i++; 
-                continue;
-            }
-
+            // Handle numbers (integers and floats)
             if (Character.isDigit(c)) {
                 StringBuilder sb = new StringBuilder();
-                while (i < length && Character.isDigit(input.charAt(i))) {
+                boolean hasDecimal = false;
+                while (i < length && (Character.isDigit(input.charAt(i)) || input.charAt(i) == '.')) {
+                    if (input.charAt(i) == '.') {
+                        if (hasDecimal) break;
+                        hasDecimal = true;
+                    }
                     sb.append(input.charAt(i));
                     i++;
                 }
-                addTokenToTable("NUMBER", sb.toString());
+                tokens.add(new Token("NUMBER", sb.toString()));
                 continue;
             }
 
-            if (Character.isLetter(c)) {
+            // Handle operators (multi-character aware)
+            if (isOperatorChar(c)) {
                 StringBuilder sb = new StringBuilder();
-                while (i < length && (Character.isLetterOrDigit(input.charAt(i)))) {
+                while (i < length && isOperatorChar(input.charAt(i))) {
+                    sb.append(input.charAt(i));
+                    i++;
+                }
+                String op = sb.toString();
+                tokens.add(new Token(getOperatorType(op), op));
+                continue;
+            }
+
+            // Handle identifiers and keywords
+            if (Character.isLetter(c) || c == '_') {
+                StringBuilder sb = new StringBuilder();
+                while (i < length && (Character.isLetterOrDigit(input.charAt(i)) || input.charAt(i) == '_')) {
                     sb.append(input.charAt(i));
                     i++;
                 }
                 String word = sb.toString();
-                if (word.matches("int|String|float|double|new")) {
-                    addTokenToTable("KEYWORD", word);
+                if (isKeyword(word)) {
+                    tokens.add(new Token("KEYWORD", word));
                 } else {
-                    addTokenToTable("IDENTIFIER", word);
+                    tokens.add(new Token("IDENTIFIER", word));
                 }
                 continue;
             }
 
-            addTokenToTable("UNKNOWN", Character.toString(c));
+            // Unknown character
+            tokens.add(new Token("UNKNOWN", Character.toString(c)));
             i++;
+        }
+        
+        // Validate token sequence (semantic validation)
+        String semanticError = validateTokenSequence(tokens);
+        if (semanticError != null) {
+            addTokenToTable("SEMANTIC ERROR", semanticError);
+            JOptionPane.showMessageDialog(this, 
+                semanticError, 
+                "Invalid Token Sequence", 
+                JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        // If all validation passed, display tokens
+        for (Token token : tokens) {
+            addTokenToTable(token.type, token.value);
         }
     }
 
@@ -197,8 +299,9 @@ public class ArrayLexerGUI extends JFrame {
         tableModel.addRow(new Object[]{type, value});
     }
 
-    private boolean isSymbol(char c) {
-        return "[]{},=;".indexOf(c) != -1;
+    // Single character symbols
+    private boolean isSingleCharSymbol(char c) {
+        return "[]{},;().".indexOf(c) != -1;
     }
 
     private String getSymbolType(char c) {
@@ -207,16 +310,69 @@ public class ArrayLexerGUI extends JFrame {
             case ']': return "R_BRACKET";
             case '{': return "L_BRACE";
             case '}': return "R_BRACE";
+            case '(': return "L_PAREN";
+            case ')': return "R_PAREN";
             case ',': return "COMMA";
-            case '=': return "EQUALS";
             case ';': return "SEMICOLON";
+            case '.': return "DOT";
             default: return "SYMBOL";
         }
     }
 
+    // Operator characters
+    private boolean isOperatorChar(char c) {
+        return "=+-*/%<>!&|:".indexOf(c) != -1;
+    }
+
+    private String getOperatorType(String op) {
+        switch (op) {
+            case "=": return "ASSIGN";
+            case "==": return "EQUALS";
+            case "!=": return "NOT_EQUALS";
+            case "+": return "PLUS";
+            case "-": return "MINUS";
+            case "*": return "MULTIPLY";
+            case "/": return "DIVIDE";
+            case "%": return "MODULO";
+            case "<": return "LESS_THAN";
+            case ">": return "GREATER_THAN";
+            case "<=": return "LESS_EQUAL";
+            case ">=": return "GREATER_EQUAL";
+            case "&&": return "LOGICAL_AND";
+            case "||": return "LOGICAL_OR";
+            case "!": return "LOGICAL_NOT";
+            case "&": return "BITWISE_AND";
+            case "|": return "BITWISE_OR";
+            case ":": return "COLON";
+            case "->": return "LAMBDA_ARROW";
+            default: return "OPERATOR";
+        }
+    }
+
+    // Enhanced keyword list
+    private boolean isKeyword(String word) {
+        String[] keywords = {
+            "abstract", "assert", "boolean", "break", "byte", "case", "catch",
+            "char", "class", "const", "continue", "default", "do", "double",
+            "else", "enum", "extends", "final", "finally", "float", "for",
+            "if", "implements", "import", "instanceof", "int", "interface",
+            "long", "native", "new", "package", "private", "protected", "public",
+            "return", "short", "static", "strictfp", "super", "switch", "synchronized",
+            "this", "throw", "throws", "transient", "try", "void", "volatile", "while",
+            "true", "false", "null", "var", "String"
+        };
+        
+        for (String keyword : keywords) {
+            if (word.equals(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            new ArrayLexerGUI().setVisible(true);
+            new EnhancedLexerGUI().setVisible(true);
         });
     }
 }
