@@ -1,0 +1,41 @@
+*** Test case 1: *** 
+print "--- Complex Nested Test ---"
+make list data := [5, 12, 3, 20]
+make num limit := 3
+
+print "Analyzing Data..."
+
+loop i from 0 to limit {
+    print "Index:"
+    print i
+    
+    if (data[i] > 10) {
+        print " -> LARGE NUMBER FOUND"
+    }
+    
+    if (data[i] < 10) {
+        print " -> small number"
+    }
+}
+
+*** Test Case 2: ***
+print "--- Basic Variable Test ---"
+make num age := 21
+make num year := 2026
+
+print "Age:"
+print age
+print "Year:"
+print year
+
+*** Test Case 3: ***
+print "--- List Test ---"
+make list numbers := [10, 20, 30, 40]
+
+print "First element:"
+print numbers[0]
+
+print "Third element:"
+print numbers[2]
+
+print "--- End Test ---"
